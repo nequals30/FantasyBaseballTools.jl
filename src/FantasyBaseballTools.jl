@@ -26,5 +26,50 @@ function get_dougStats_data(dt::Date, batterOrPitcher::AbstractString="batter")
     DataFrame(body_csv)
 end
 
+
+
+function yahoo_connect(updateClientInfo::Bool=false)
+    if !isfile("./yahoo_client_info.toml") || updateClientInfo
+        c_id,c_secret = yahoo_registerApplication()
+    else
+        file = open("./yahoo_client_info.toml")
+        for line in eachline(file)
+            thisLine = split(line," = ")
+            if lowercase(strip(thisLine[1])) == "client id"
+                c_id = replace(strip(thisLine[2]),"\""=>"")
+            elseif lowercase(strip(thisLine[1])) == "client secret"
+                c_secret = replace(strip(thisLine[2]),"\""=>"")
+            end
+        end
+        close(file)
+    end
+    # if you don't have a token, or the token is stale, then:
+    yahoo_oauth2_authorizationRequest(c_id)
+
+end
+
+function yahoo_registerApplication()
+    println("""Go here to to register an 'application':
+    https://developer.yahoo.com/apps/create/
+
+    It will give you a 'Client ID' and a 'Client Secret'. Enter them here:
+    Client ID:""")
+    file = open("./yahoo_client_info.toml","w")
+    c_id = readline()
+    println("Client Secret:")
+    c_secret = readline()
+    write(file,"Client ID = \""*c_id*"\"\n")
+    write(file,"Client Secret = \""*c_secret*"\"\n")
+    close(file)
+    return c_id, c_secret
+end
+
+function yahoo_oauth2_authorizationRequest(client_id)
+    authorize_url = "https://api.login.yahoo.com/oauth2/request_auth?redirect_uri=oob&response_type=code&client_id=" * client_id
+    println("Please go to this link in your browser:\n" * authorize_url)
+    println("Enter Verifier:")
+    verifier = readline()
+end
+    
 end # module
 
