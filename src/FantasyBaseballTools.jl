@@ -1,8 +1,8 @@
 module FantasyBaseballTools 
 
-using Dates, HTTP, CSV, DataFrames
+using Dates, HTTP, CSV, DataFrames, Base64
 
-export get_dougStats_data
+export get_dougStats_data, yahoo_connect
 
 """
     get_dougStats_data(dt::Date, batterOrPitcher::AbstractString="batter") -> DataFrame
@@ -26,8 +26,6 @@ function get_dougStats_data(dt::Date, batterOrPitcher::AbstractString="batter")
     DataFrame(body_csv)
 end
 
-
-
 function yahoo_connect(updateClientInfo::Bool=false)
     if !isfile("./yahoo_client_info.toml") || updateClientInfo
         c_id,c_secret = yahoo_registerApplication()
@@ -44,7 +42,7 @@ function yahoo_connect(updateClientInfo::Bool=false)
         close(file)
     end
     # if you don't have a token, or the token is stale, then:
-    yahoo_oauth2_authorizationRequest(c_id)
+    yahoo_oauth2_authorizationRequest(c_id,c_secret)
 
 end
 
@@ -64,12 +62,27 @@ function yahoo_registerApplication()
     return c_id, c_secret
 end
 
-function yahoo_oauth2_authorizationRequest(client_id)
+function yahoo_oauth2_authorizationRequest(client_id,client_secret)
+    # Direct the user to the authentication page and ask for the verifier
     authorize_url = "https://api.login.yahoo.com/oauth2/request_auth?redirect_uri=oob&response_type=code&client_id=" * client_id
     println("Please go to this link in your browser:\n" * authorize_url)
     println("Enter Verifier:")
     verifier = readline()
+
+    # Make an HTTP POST request to get the access token
+    url_getToken = "https://api.login.yahoo.com/oauth2/get_token"
+    headers = ["Content-Type" => "application/x-www-form-urlencoded",
+               "Authorization" => "Basic "*base64encode(client_id*":"*client_secret)]
+    params = Dict("grant_type" => "authorization_code",
+                  "client_id" => client_id,
+                  "client_secret" => client_secret,
+                  "redirect_uri" => "oob",
+                  "code" => verifier)
+    #body = HTTP.URIs.escapeuri(params)
+    #response = HTTP.post(url_getToken,headers,body,verbose=2)
+    println(headers)
+    println(params)
 end
-    
+
 end # module
 
