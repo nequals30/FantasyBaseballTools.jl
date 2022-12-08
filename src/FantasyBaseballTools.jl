@@ -1,6 +1,6 @@
 module FantasyBaseballTools 
 
-using Dates, HTTP, CSV, DataFrames, Base64
+using Dates, HTTP, CSV, DataFrames, Base64, JSON
 
 export get_dougStats_data, yahoo_connect
 
@@ -71,17 +71,21 @@ function yahoo_oauth2_authorizationRequest(client_id,client_secret)
 
     # Make an HTTP POST request to get the access token
     url_getToken = "https://api.login.yahoo.com/oauth2/get_token"
-    headers = ["Content-Type" => "application/x-www-form-urlencoded",
-               "Authorization" => "Basic "*base64encode(client_id*":"*client_secret)]
-    params = Dict("grant_type" => "authorization_code",
+    headers = Dict("Content-Type" => "application/x-www-form-urlencoded",
+                   "Authorization" => "Basic "*base64encode(client_id*":"*client_secret))
+    payload = Dict("grant_type" => "authorization_code",
                   "client_id" => client_id,
                   "client_secret" => client_secret,
                   "redirect_uri" => "oob",
                   "code" => verifier)
-    #body = HTTP.URIs.escapeuri(params)
-    #response = HTTP.post(url_getToken,headers,body,verbose=2)
-    println(headers)
-    println(params)
+    response = HTTP.post(url_getToken,headers,payload)
+    rawData = JSON.parse(String(response.body))
+
+    # Write to file
+    file = open("./yahoo_oauth_token.toml","w")
+    write(file,"Refresh Token = \""*rawData["refresh_token"]*"\"\n")
+    write(file,"Access Token = \""*rawData["access_token"]*"\"\n")
+    close(file)
 end
 
 end # module
