@@ -88,5 +88,69 @@ function yahoo_oauth2_authorizationRequest(client_id,client_secret)
     close(file)
 end
 
+function yahoo_oauth2_refreshToken()
+    # Read the saved refresh token
+    token = ""
+    c_id = ""
+    c_secret = ""
+    file = open("./yahoo_oauth_token.toml")
+    for line in eachline(file)
+        thisLine = split(line," = ")
+        if lowercase(strip(thisLine[1])) == "refresh token"
+            token = replace(strip(thisLine[2]),"\""=>"")
+        end
+    end
+    close(file)
+
+    # Read the client id and secret again
+    file = open("./yahoo_client_info.toml")
+    for line in eachline(file)
+        thisLine = split(line," = ")
+        if lowercase(strip(thisLine[1])) == "client id"
+            c_id = replace(strip(thisLine[2]),"\""=>"")
+        elseif lowercase(strip(thisLine[1])) == "client secret"
+            c_secret = replace(strip(thisLine[2]),"\""=>"")
+        end
+    end
+    close(file)
+
+    # Make an HTTP POST request to get the access token
+    url_refreshToken = "https://api.login.yahoo.com/oauth2/get_token"
+    headers = Dict("Content-Type" => "application/x-www-form-urlencoded")
+    payload = Dict("grant_type" => "refresh_token",
+                  "client_id" => c_id,
+                  "client_secret" => c_secret,
+                  "refresh_token" => token)
+    response = HTTP.post(url_refreshToken,headers,payload)
+    rawData = JSON.parse(String(response.body))
+
+    # Re-write the saved tokens
+    file = open("./yahoo_oauth_token.toml","w")
+    write(file,"Refresh Token = \""*rawData["refresh_token"]*"\"\n")
+    write(file,"Access Token = \""*rawData["access_token"]*"\"\n")
+    close(file)
+end
+
+function yahoo_get_data(league_id,game_id)
+    # Read the saved token
+    token = ""
+    file = open("./yahoo_oauth_token.toml")
+    for line in eachline(file)
+        thisLine = split(line," = ")
+        if lowercase(strip(thisLine[1])) == "access token"
+            token = replace(strip(thisLine[2]),"\""=>"")
+        end
+    end
+    close(file)
+
+    # Make an HTTP get request for the data
+    url = "https://fantasysports.yahooapis.com/fantasy/v2/league/"*string(game_id)*".l."*string(league_id)*"/players;start=25;count=25"
+    headers = Dict("Authorization" => "Bearer "*token)
+     println(headers)
+    response = HTTP.get(url,headers)
+    return response
+
+end
+
 end # module
 
