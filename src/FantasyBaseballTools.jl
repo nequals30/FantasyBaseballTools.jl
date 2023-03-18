@@ -129,6 +129,7 @@ function yahoo_oauth2_refreshToken()
     write(file,"Refresh Token = \""*rawData["refresh_token"]*"\"\n")
     write(file,"Access Token = \""*rawData["access_token"]*"\"\n")
     close(file)
+    return rawData["access_token"]
 end
 
 function yahoo_get_data(league_id,game_id)
@@ -145,9 +146,26 @@ function yahoo_get_data(league_id,game_id)
 
     # Make an HTTP get request for the data
     url = "https://fantasysports.yahooapis.com/fantasy/v2/league/"*string(game_id)*".l."*string(league_id)*"/players;start=25;count=25"
+    printlin(url)
     headers = Dict("Authorization" => "Bearer "*token)
-     println(headers)
-    response = HTTP.get(url,headers)
+    try
+        response = HTTP.get(url,headers)
+    catch e
+        # refresh an expired token
+        isFixed = false
+        for pair in e.response.headers
+            if lowercase(pair.first) == "www-authenticate" && occursin("token_expired",pair.second)
+                println("Token is expired. Trying to refresh token...")
+                token = yahoo_oauth2_refreshToken()
+                isFixed = true
+                println("Success. Trying again.")
+            end
+        end
+        if isFixed
+            headers = Dict("Authorization" => "Bearer "*token)
+            response = HTTP.get(url,headers)
+        end
+    end
     return response
 
 end
